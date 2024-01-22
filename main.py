@@ -138,10 +138,9 @@ def start_sending_button_click():
     global sending_in_progress
 
     if not sending_in_progress:
-        # Calculate the time until the next minute
+        # Calculate the time until the next closest minute
         current_time = datetime.datetime.utcnow()
         next_minute = (current_time.minute + 1) % 60
-        seconds_until_next_minute = 60 - current_time.second
 
         # Schedule the sending to start at the next closest minute
         start_time = current_time.replace(minute=next_minute, second=0)
