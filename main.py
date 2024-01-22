@@ -151,6 +151,11 @@ def start_sending_button_click():
         global next_scheduled_time
         next_scheduled_time = start_time.strftime("%H:%M:%S")
 
+        # Logging: Print relevant information
+        print("Starting sending at:", next_scheduled_time)
+        print("Current time:", current_time)
+        print("Waiting for", seconds_until_next_closest_minute, "seconds")
+
         # Schedule the sending to start at the next closest minute
         threading.Timer(seconds_until_next_closest_minute, send_metar_thread, args=(host, port)).start()
     else:
