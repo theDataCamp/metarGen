@@ -72,6 +72,8 @@ def generate_and_send_metar(host, port):
 
             timestamp = send_metar_with_timestamp()
             metar_data = metar_data.replace('ddHHMMZ', timestamp)
+            # Add CR and LF characters
+            metar_data += "\r\n"
 
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
