@@ -132,8 +132,6 @@ def stop_sending():
     next_scheduled_time = None  # Reset the next scheduled time
 
 
-# Function to handle the Start Sending button click
-# Function to handle the Start Sending button click
 def start_sending_button_click():
     host = host_entry.get()
     port = int(port_entry.get())
@@ -141,11 +139,16 @@ def start_sending_button_click():
 
     if not sending_in_progress:
         # Calculate the time until the next minute
-        current_time = time.time()
-        seconds_until_next_minute = 60 - (current_time % 60)
+        current_time = datetime.datetime.utcnow()
+        next_minute = (current_time.minute + 1) % 60
+        seconds_until_next_minute = 60 - current_time.second
 
         # Schedule the sending to start at the next closest minute
-        threading.Timer(seconds_until_next_minute, send_metar_thread, args=(host, port)).start()
+        start_time = current_time.replace(minute=next_minute, second=0)
+        time_difference = start_time - current_time
+        seconds_until_next_closest_minute = time_difference.total_seconds()
+
+        threading.Timer(seconds_until_next_closest_minute, send_metar_thread, args=(host, port)).start()
     else:
         stop_sending()
 
