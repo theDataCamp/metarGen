@@ -66,12 +66,14 @@ def send_metar_with_timestamp():
 
 # Function to send METAR data to the specified host and port
 def generate_and_send_metar(host, port):
+    global next_scheduled_time
     with open("input.txt", "r") as file:
         for line in file:
             metar_data = line.strip()
 
             timestamp = send_metar_with_timestamp()
             metar_data = metar_data.replace('ddHHMMZ', timestamp)
+
             # Add CR and LF characters
             metar_data += "\r\n"
 
@@ -83,10 +85,14 @@ def generate_and_send_metar(host, port):
             except Exception as e:
                 metar_text.insert(tk.END, f"Error: {str(e)}\n")
 
+    # Log the next scheduled time
+    if next_scheduled_time:
+        metar_text.insert(tk.END, f"Next Scheduled METAR at: {next_scheduled_time}\n")
+
 
 # Function to handle sending METAR data in a separate thread
 def send_metar_thread(host, port):
-    global sending_in_progress
+    global sending_in_progress, next_scheduled_time
     sending_in_progress = True
     auto_send_var.set(False)  # Disable the Automatic Send checkbox
     start_button.config(text="Stop Sending")  # Change button text to Stop Sending
@@ -97,6 +103,8 @@ def send_metar_thread(host, port):
         while sending_in_progress:
             schedule.run_pending()
             time.sleep(1)
+            # Update the next scheduled time
+            next_scheduled_time = schedule.next_run()
 
     sending_thread = threading.Thread(target=send_metar_at_specific_times)
     sending_thread.daemon = True
@@ -105,16 +113,18 @@ def send_metar_thread(host, port):
 
 # Function to stop sending METAR data
 def stop_sending():
-    global sending_in_progress
+    global sending_in_progress, next_scheduled_time
     sending_in_progress = False
     auto_send_var.set(True)  # Enable the Automatic Send checkbox
     start_button.config(text="Start Sending")  # Change button text to Start Sending
+    next_scheduled_time = None  # Reset the next scheduled time
 
 
 # Function to handle the Start Sending button click
 def start_sending_button_click():
     host = host_entry.get()
     port = int(port_entry.get())
+    global sending_in_progress
     if not sending_in_progress:
         send_metar_thread(host, port)
     else:
@@ -127,6 +137,7 @@ def send_now_button_click(host, port):
         generate_and_send_metar(host, port)
     else:  # If automatic sending is enabled, send the METAR right away
         generate_and_send_metar(host, port)
+
 
 # Bind Send Now button to function
 send_button.config(command=lambda: send_now_button_click(host_entry.get(), int(port_entry.get())))
