@@ -34,6 +34,12 @@ start_button = ttk.Button(app, text="Start Sending", state="disabled")  # Create
 
 send_button = ttk.Button(app, text="Send Now")
 
+# Create checkboxes for CR and LF
+add_cr_var = tk.BooleanVar()
+add_cr_checkbox = ttk.Checkbutton(app, text="Add CR", variable=add_cr_var)
+add_lf_var = tk.BooleanVar()
+add_lf_checkbox = ttk.Checkbutton(app, text="Add LF", variable=add_lf_var)
+
 # Layout Widgets
 metar_label.grid(row=0, column=0, padx=10, pady=5, sticky=tk.W)
 metar_text.grid(row=0, column=1, padx=10, pady=5, sticky="nsew")
@@ -52,6 +58,10 @@ frequency_label.grid(row=3, column=0, padx=10, pady=5)
 frequency_spinner.grid(row=3, column=1, padx=10, pady=5)
 start_button.grid(row=4, column=0, columnspan=2, padx=10, pady=5)  # Add Start Sending button
 send_button.grid(row=5, column=0, columnspan=2, padx=10, pady=5)  # Move Send Now button to row 5
+
+# Add checkboxes for CR and LF
+add_cr_checkbox.grid(row=6, column=0, padx=10, pady=5)
+add_lf_checkbox.grid(row=6, column=1, padx=10, pady=5)
 
 # Create a global variable to track sending status
 sending_in_progress = False
@@ -74,8 +84,10 @@ def generate_and_send_metar(host, port):
             timestamp = send_metar_with_timestamp()
             metar_data = metar_data.replace('ddHHMMZ', timestamp)
 
-            # Add CR and LF characters
-            metar_data += "\r\n"
+            if add_cr_var.get():
+                metar_data += "\r"
+            if add_lf_var.get():
+                metar_data += "\n"
 
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
