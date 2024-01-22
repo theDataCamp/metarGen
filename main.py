@@ -172,6 +172,8 @@ def send_now_button_click(host, port):
 
 # Bind Send Now button to function
 send_button.config(command=lambda: send_now_button_click(host_entry.get(), int(port_entry.get())))
+start_button.config(command=start_sending_button_click)
+
 
 
 # Update GUI based on Automatic Send checkbox
