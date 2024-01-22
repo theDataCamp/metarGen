@@ -1,9 +1,10 @@
 import tkinter as tk
 from tkinter import ttk
 import socket
-import time
 import datetime
 import threading
+import schedule
+import time
 
 # Create the Tkinter Application
 app = tk.Tk()
@@ -29,8 +30,9 @@ frequency_var = tk.StringVar()
 frequency_spinner = ttk.Spinbox(app, from_=1, to=360, textvariable=frequency_var)
 frequency_var.set("1")  # Set the default value to 1
 
+start_button = ttk.Button(app, text="Start Sending", state="disabled")  # Create Start Sending button
+
 send_button = ttk.Button(app, text="Send Now")
-start_button = ttk.Button(app, text="Start Sending")
 
 # Layout Widgets
 metar_label.grid(row=0, column=0, padx=10, pady=5, sticky=tk.W)
@@ -48,8 +50,11 @@ port_entry.grid(row=1, column=3, padx=10, pady=5)
 auto_send_checkbox.grid(row=2, column=0, columnspan=4, padx=10, pady=5)
 frequency_label.grid(row=3, column=0, padx=10, pady=5)
 frequency_spinner.grid(row=3, column=1, padx=10, pady=5)
-send_button.grid(row=4, column=0, padx=10, pady=5)
-start_button.grid(row=4, column=1, padx=10, pady=5)
+start_button.grid(row=4, column=0, columnspan=2, padx=10, pady=5)  # Add Start Sending button
+send_button.grid(row=5, column=0, columnspan=2, padx=10, pady=5)  # Move Send Now button to row 5
+
+# Create a global variable to track sending status
+sending_in_progress = False
 
 
 # Function to send METAR with correct UTC timestamp
@@ -79,23 +84,61 @@ def generate_and_send_metar(host, port):
 
 # Function to handle sending METAR data in a separate thread
 def send_metar_thread(host, port):
-    while auto_send_var.get():
-        generate_and_send_metar(host, port)
-        time.sleep(int(frequency_var.get()) * 60)
+    global sending_in_progress
+    sending_in_progress = True
+    auto_send_var.set(False)  # Disable the Automatic Send checkbox
+    start_button.config(text="Stop Sending")  # Change button text to Stop Sending
+
+    def send_metar_at_specific_times():
+        frequency = int(frequency_var.get())
+        schedule.every(frequency).minutes.at(":00").do(lambda: generate_and_send_metar(host, port))
+        while sending_in_progress:
+            schedule.run_pending()
+            time.sleep(1)
+
+    sending_thread = threading.Thread(target=send_metar_at_specific_times)
+    sending_thread.daemon = True
+    sending_thread.start()
 
 
-# Function to start sending METAR data in a separate thread
-def start_sending_thread():
+# Function to stop sending METAR data
+def stop_sending():
+    global sending_in_progress
+    sending_in_progress = False
+    auto_send_var.set(True)  # Enable the Automatic Send checkbox
+    start_button.config(text="Start Sending")  # Change button text to Start Sending
+
+
+# Function to handle the Start Sending button click
+def start_sending_button_click():
     host = host_entry.get()
     port = int(port_entry.get())
-    thread = threading.Thread(target=send_metar_thread, args=(host, port))
-    thread.daemon = True
-    thread.start()
+    if not sending_in_progress:
+        send_metar_thread(host, port)
+    else:
+        stop_sending()
 
 
-# Bind Buttons to Functions
-send_button.config(command=lambda: generate_and_send_metar(host_entry.get(), int(port_entry.get())))
-start_button.config(command=start_sending_thread)
+# Function to handle the Send Now button click
+def send_now_button_click(host, port):
+    if not auto_send_var.get():  # If automatic sending is disabled
+        generate_and_send_metar(host, port)
+    else:  # If automatic sending is enabled, send the METAR right away
+        generate_and_send_metar(host, port)
+
+# Bind Send Now button to function
+send_button.config(command=lambda: send_now_button_click(host_entry.get(), int(port_entry.get())))
+
+
+# Update GUI based on Automatic Send checkbox
+def update_gui_based_on_checkbox():
+    if auto_send_var.get():
+        start_button.config(state="normal")
+    else:
+        start_button.config(state="disabled")
+
+
+auto_send_var.trace_add("write", lambda *args: update_gui_based_on_checkbox())
 
 # Run the Application
 app.mainloop()
