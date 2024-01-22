@@ -143,10 +143,15 @@ def start_sending_button_click():
         next_minute = (current_time.minute + 1) % 60
 
         # Schedule the sending to start at the next closest minute
-        start_time = current_time.replace(minute=next_minute, second=0)
+        start_time = current_time.replace(minute=next_minute, second=0, microsecond=0)
         time_difference = start_time - current_time
         seconds_until_next_closest_minute = time_difference.total_seconds()
 
+        # Update the global variable next_scheduled_time
+        global next_scheduled_time
+        next_scheduled_time = start_time.strftime("%H:%M:%S")
+
+        # Schedule the sending to start at the next closest minute
         threading.Timer(seconds_until_next_closest_minute, send_metar_thread, args=(host, port)).start()
     else:
         stop_sending()
