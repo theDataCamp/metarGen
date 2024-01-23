@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import ttk
 import socket
 import datetime
+import threading
+
 
 class HostPortEntryFrame(ttk.Frame):
     def __init__(self, parent, host_label_text, port_label_text):
@@ -21,6 +23,7 @@ class HostPortEntryFrame(ttk.Frame):
 
     def get_port(self):
         return self.port_entry.get()
+
 
 class METARGeneratorApp(tk.Tk):
     def __init__(self, host_port_pairs):
@@ -50,35 +53,36 @@ class METARGeneratorApp(tk.Tk):
         # Create host and port input fields based on the dictionary
         for i, (host_label_text, port_label_text) in enumerate(host_port_pairs):
             entry_frame = HostPortEntryFrame(self, host_label_text, port_label_text)
-            entry_frame.grid(row=i+2, column=0, columnspan=4, padx=10, pady=5)
+            entry_frame.grid(row=i + 2, column=0, columnspan=4, padx=10, pady=5)
             self.host_port_entries.append(entry_frame)
 
-        self.send_button.grid(row=len(host_port_pairs)+2, column=0, columnspan=4, padx=10, pady=5)
+        self.send_button.grid(row=len(host_port_pairs) + 2, column=0, columnspan=4, padx=10, pady=5)
 
         # Initialize variables for sending data
         self.file_iterator = None
         self.current_line = None
+        self.file_lock = threading.Lock()  # Lock for file reading
 
     def send_now_button_click(self):
+        # Create a list to store thread objects
+        threads = []
+
         for entry_frame in self.host_port_entries:
             host = entry_frame.get_host()
             port = int(entry_frame.get_port())
 
             if host and port:
-                # Initialize the file iterator if not already done
-                if self.file_iterator is None:
-                    self.file_iterator = self.get_file_iterator()
-
                 try:
-                    # Get the next line from the file
-                    self.current_line = next(self.file_iterator)
+                    # Create a thread for sending METAR data to each host and port
+                    thread = threading.Thread(target=self.send_metar_to_host, args=(host, port))
+                    threads.append(thread)
+                    thread.start()
+                except Exception as e:
+                    self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
 
-                    # Process the line and send METAR
-                    self.generate_and_send_metar(host, port)
-                except StopIteration:
-                    # Reset the file iterator to loop over lines
-                    self.file_iterator = self.get_file_iterator()
-                    self.metar_text.insert(tk.END, "Looping back to the beginning of the file.\n")
+        # Wait for all threads to finish
+        for thread in threads:
+            thread.join()
 
     def get_file_iterator(self):
         with open("input.txt", "r") as file:
@@ -89,6 +93,23 @@ class METARGeneratorApp(tk.Tk):
         current_time = datetime.datetime.utcnow()
         timestamp = current_time.strftime('%d%H%MZ')
         return timestamp
+
+    def send_metar_to_host(self, host, port):
+        with self.file_lock:
+            # Initialize the file iterator if not already done
+            if self.file_iterator is None:
+                self.file_iterator = self.get_file_iterator()
+
+            try:
+                # Get the next line from the file
+                self.current_line = next(self.file_iterator)
+
+                # Process the line and send METAR
+                self.generate_and_send_metar(host, port)
+            except StopIteration:
+                # Reset the file iterator to loop over lines
+                self.file_iterator = self.get_file_iterator()
+                self.metar_text.insert(tk.END, "Looping back to the beginning of the file.\n")
 
     def generate_and_send_metar(self, host, port):
         if self.current_line:
