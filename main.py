@@ -7,15 +7,21 @@ import threading
 class HostPortEntryFrame(ttk.Frame):
     def __init__(self, parent, host_label_text, port_label_text):
         super().__init__(parent)
+        self.name_label = ttk.Label(self, text="Name")
         self.host_label = ttk.Label(self, text=host_label_text)
         self.port_label = ttk.Label(self, text=port_label_text)
+        self.name_entry = ttk.Entry(self, width=30)
         self.host_entry = ttk.Entry(self, width=30)
         self.port_entry = ttk.Entry(self, width=10)
 
-        self.host_label.grid(row=0, column=0, padx=10, pady=5)
-        self.host_entry.grid(row=0, column=1, padx=10, pady=5)
-        self.port_label.grid(row=0, column=2, padx=10, pady=5)
-        self.port_entry.grid(row=0, column=3, padx=10, pady=5)
+        self.row_num = 0
+        self.name_label.grid(row=self.row_num, column=0, padx=10, pady=5)
+        self.name_entry.grid(row=self.row_num, column=1, padx=10, pady=5)
+        self.row_num += 1
+        self.host_label.grid(row=self.row_num, column=0, padx=10, pady=5)
+        self.host_entry.grid(row=self.row_num, column=1, padx=10, pady=5)
+        self.port_label.grid(row=self.row_num, column=2, padx=10, pady=5)
+        self.port_entry.grid(row=self.row_num, column=3, padx=10, pady=5)
 
     def get_host(self):
         return self.host_entry.get()
