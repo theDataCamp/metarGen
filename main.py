@@ -117,6 +117,8 @@ class METARGeneratorApp(tk.Tk):
 
             timestamp = self.send_metar_with_timestamp()
             metar_data = metar_data.replace('ddHHMMZ', timestamp)
+            metar_data += '\n'
+            metar_data += '\r'
 
             try:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
