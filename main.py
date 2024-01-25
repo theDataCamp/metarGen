@@ -4,7 +4,6 @@ import socket
 import datetime
 import threading
 
-
 class HostPortEntryFrame(ttk.Frame):
     def __init__(self, parent, host_label_text, port_label_text):
         super().__init__(parent)
@@ -23,7 +22,6 @@ class HostPortEntryFrame(ttk.Frame):
 
     def get_port(self):
         return self.port_entry.get()
-
 
 class METARGeneratorApp(tk.Tk):
     def __init__(self, host_port_pairs):
@@ -69,14 +67,17 @@ class METARGeneratorApp(tk.Tk):
 
         for entry_frame in self.host_port_entries:
             host = entry_frame.get_host()
-            port = int(entry_frame.get_port())
+            port_str = entry_frame.get_port()
 
-            if host and port:
+            if host and port_str:
                 try:
+                    port = int(port_str)
                     # Create a thread for sending METAR data to each host and port
                     thread = threading.Thread(target=self.send_metar_to_host, args=(host, port))
                     threads.append(thread)
                     thread.start()
+                except ValueError:
+                    self.metar_text.insert(tk.END, f"Invalid port value for {host}\n")
                 except Exception as e:
                     self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
 
@@ -96,13 +97,17 @@ class METARGeneratorApp(tk.Tk):
 
     def send_metar_to_host(self, host, port):
         with self.file_lock:
-            # Initialize the file iterator if not already done
             if self.file_iterator is None:
                 self.file_iterator = self.get_file_iterator()
 
             try:
                 # Get the next line from the file
                 self.current_line = next(self.file_iterator)
+
+                # If we've reached the end of the file, loop back to the beginning
+                if self.current_line is None:
+                    self.file_iterator = self.get_file_iterator()
+                    self.current_line = next(self.file_iterator)
 
                 # Process the line and send METAR
                 self.generate_and_send_metar(host, port)
@@ -130,10 +135,7 @@ class METARGeneratorApp(tk.Tk):
         else:
             self.metar_text.insert(tk.END, "No more lines to send.\n")
 
-
 if __name__ == "__main__":
-    # Define the host and port pairs as a list of tuples
     host_port_pairs = [("Host 1:", "Port 1:"), ("Host 2:", "Port 2:"), ("Host 3:", "Port 3:")]
-
     app = METARGeneratorApp(host_port_pairs)
     app.mainloop()
