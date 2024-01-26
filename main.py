@@ -68,9 +68,6 @@ class METARGeneratorApp(tk.Tk):
         self.file_lock = threading.Lock()  # Lock for file reading
 
     def send_now_button_click(self):
-        # Create a list to store thread objects
-        threads = []
-
         for entry_frame in self.host_port_entries:
             host = entry_frame.get_host()
             port_str = entry_frame.get_port()
@@ -78,18 +75,12 @@ class METARGeneratorApp(tk.Tk):
             if host and port_str:
                 try:
                     port = int(port_str)
-                    # Create a thread for sending METAR data to each host and port
                     thread = threading.Thread(target=self.send_metar_to_host, args=(host, port))
-                    threads.append(thread)
                     thread.start()
                 except ValueError:
                     self.metar_text.insert(tk.END, f"Invalid port value for {host}\n")
                 except Exception as e:
                     self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
-
-        # Wait for all threads to finish
-        for thread in threads:
-            thread.join()
 
     def get_file_iterator(self):
         with open("input.txt", "r") as file:
@@ -107,25 +98,25 @@ class METARGeneratorApp(tk.Tk):
                 self.file_iterator = self.get_file_iterator()
 
             try:
-                # Get the next line from the file
-                self.current_line = next(self.file_iterator)
+                self.current_line = next(self.file_iterator, None)
 
-                # If we've reached the end of the file, loop back to the beginning
                 if self.current_line is None:
                     self.file_iterator = self.get_file_iterator()
-                    self.current_line = next(self.file_iterator)
+                    self.current_line = next(self.file_iterator, None)
 
-                # Process the line and send METAR
-                self.generate_and_send_metar(host, port)
+                if self.current_line:
+                    self.generate_and_send_metar(host, port)
             except StopIteration:
-                # Reset the file iterator to loop over lines
                 self.file_iterator = self.get_file_iterator()
                 self.metar_text.insert(tk.END, "Looping back to the beginning of the file.\n")
+            except Exception as e:
+                self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
+            finally:
+                self.file_lock.release()
 
     def generate_and_send_metar(self, host, port):
         if self.current_line:
             metar_data = self.current_line.strip()
-
             timestamp = self.send_metar_with_timestamp()
             metar_data = metar_data.replace('ddHHMMZ', timestamp)
             metar_data += '\n'
