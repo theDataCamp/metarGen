@@ -4,6 +4,7 @@ import socket
 import datetime
 import threading
 
+
 class HostPortEntryFrame(ttk.Frame):
     def __init__(self, parent, host_label_text, port_label_text):
         super().__init__(parent)
@@ -52,6 +53,7 @@ class HostPortEntryFrame(ttk.Frame):
         self.host_entry.config(state=new_state)
         self.port_label.config(state=new_state)
         self.port_entry.config(state=new_state)
+
 
 class METARGeneratorApp(tk.Tk):
     def __init__(self, host_port_pairs):
@@ -112,17 +114,23 @@ class METARGeneratorApp(tk.Tk):
                             if host and port_str:
                                 try:
                                     port = int(port_str)
-                                    thread = threading.Thread(target=self.send_message_to_host, args=(host, port, self.current_line))
+                                    thread = threading.Thread(target=self.send_message_to_host,
+                                                              args=(host, port, self.current_line))
                                     thread.start()
                                 except ValueError:
-                                    self.metar_text.insert(tk.END, f"Invalid port value for {host}\n")
+                                    message = f"Invalid port value for {host}\n"
+                                    self.update_metar_text(message)
                                 except Exception as e:
-                                    self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
+                                    message = f"Error: {str(e)}\n"
+                                    self.update_metar_text(message)
+
             except StopIteration:
                 self.file_iterator = self.get_file_iterator()
-                self.metar_text.insert(tk.END, "Looping back to the beginning of the file.\n")
+                message = "Looping back to the beginning of the file.\n"
+                self.update_metar_text(message)
             except Exception as e:
-                self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
+                message = f"Error: {str(e)}\n"
+                self.update_metar_text(message)
 
     def get_file_iterator(self):
         with open("input.txt", "r") as file:
@@ -146,9 +154,17 @@ class METARGeneratorApp(tk.Tk):
                 s.connect((host, port))
                 s.sendall(metar_data.encode())
                 report_type = "METAR" if "METAR" in metar_data else "SPECI"
-                self.metar_text.insert(tk.END, f"Sent {report_type} to {host}:{port}: {metar_data}\n")
+                message = f"Sent {report_type} to {host}:{port}: {metar_data}\n"
+                self.update_metar_text(message)
         except Exception as e:
             self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
+
+    def update_metar_text(self, new_data):
+        if not new_data.endswith('\n'):
+            new_data += '\n'
+        self.metar_text.insert(tk.END, new_data)
+        self.metar_text.see(tk.END)
+
 
 if __name__ == "__main__":
     host_port_pairs = [("Host 1:", "Port 1:"), ("Host 2:", "Port 2:"), ("Host 3:", "Port 3:")]
