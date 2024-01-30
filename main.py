@@ -92,32 +92,6 @@ class METARGeneratorApp(tk.Tk):
         self.file_lock = threading.Lock()  # Lock for file reading
 
     def send_now_button_click(self):
-        for entry_frame in self.host_port_entries:
-            if entry_frame.entry_ready_to_send():
-                host = entry_frame.get_host()
-                port_str = entry_frame.get_port()
-
-                if host and port_str:
-                    try:
-                        port = int(port_str)
-                        thread = threading.Thread(target=self.send_metar_to_host, args=(host, port))
-                        thread.start()
-                    except ValueError:
-                        self.metar_text.insert(tk.END, f"Invalid port value for {host}\n")
-                    except Exception as e:
-                        self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
-
-    def get_file_iterator(self):
-        with open("input.txt", "r") as file:
-            for line in file:
-                yield line
-
-    def send_metar_with_timestamp(self):
-        current_time = datetime.datetime.now(datetime.UTC)
-        timestamp = current_time.strftime('%d%H%MZ')
-        return timestamp
-
-    def send_metar_to_host(self, host, port):
         with self.file_lock:
             if self.file_iterator is None:
                 self.file_iterator = self.get_file_iterator()
@@ -130,31 +104,51 @@ class METARGeneratorApp(tk.Tk):
                     self.current_line = next(self.file_iterator, None)
 
                 if self.current_line:
-                    self.generate_and_send_metar(host, port)
+                    for entry_frame in self.host_port_entries:
+                        if entry_frame.entry_ready_to_send():
+                            host = entry_frame.get_host()
+                            port_str = entry_frame.get_port()
+
+                            if host and port_str:
+                                try:
+                                    port = int(port_str)
+                                    thread = threading.Thread(target=self.send_metar_to_host, args=(host, port, self.current_line))
+                                    thread.start()
+                                except ValueError:
+                                    self.metar_text.insert(tk.END, f"Invalid port value for {host}\n")
+                                except Exception as e:
+                                    self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
             except StopIteration:
                 self.file_iterator = self.get_file_iterator()
                 self.metar_text.insert(tk.END, "Looping back to the beginning of the file.\n")
             except Exception as e:
                 self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
 
-    def generate_and_send_metar(self, host, port):
-        if self.current_line:
-            metar_data = self.current_line.strip()
-            timestamp = self.send_metar_with_timestamp()
-            metar_data = metar_data.replace('ddHHMMZ', timestamp)
-            metar_data += '\n'
-            metar_data += '\r'
+    def get_file_iterator(self):
+        with open("input.txt", "r") as file:
+            for line in file:
+                yield line
 
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                    s.connect((host, port))
-                    s.sendall(metar_data.encode())
-                    report_type = "METAR" if "METAR" in metar_data else "SPECI"
-                    self.metar_text.insert(tk.END, f"Sent {report_type} to {host}:{port}: {metar_data}\n")
-            except Exception as e:
-                self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
-        else:
-            self.metar_text.insert(tk.END, "No more lines to send.\n")
+    def get_timestamp_for_message(self):
+        current_time = datetime.datetime.now(datetime.timezone.utc)
+        timestamp = current_time.strftime('%d%H%MZ')
+        return timestamp
+
+    def send_metar_to_host(self, host, port, line):
+        metar_data = line.strip()
+        timestamp = self.get_timestamp_for_message()
+        metar_data = metar_data.replace('ddHHMMZ', timestamp)
+        metar_data += '\n'
+        metar_data += '\r'
+
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.connect((host, port))
+                s.sendall(metar_data.encode())
+                report_type = "METAR" if "METAR" in metar_data else "SPECI"
+                self.metar_text.insert(tk.END, f"Sent {report_type} to {host}:{port}: {metar_data}\n")
+        except Exception as e:
+            self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
 
 if __name__ == "__main__":
     host_port_pairs = [("Host 1:", "Port 1:"), ("Host 2:", "Port 2:"), ("Host 3:", "Port 3:")]
