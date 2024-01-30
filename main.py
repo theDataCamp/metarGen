@@ -113,7 +113,7 @@ class METARGeneratorApp(tk.Tk):
                 yield line
 
     def send_metar_with_timestamp(self):
-        current_time = datetime.datetime.utcnow()
+        current_time = datetime.datetime.now(datetime.UTC)
         timestamp = current_time.strftime('%d%H%MZ')
         return timestamp
 
@@ -136,8 +136,6 @@ class METARGeneratorApp(tk.Tk):
                 self.metar_text.insert(tk.END, "Looping back to the beginning of the file.\n")
             except Exception as e:
                 self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
-            finally:
-                self.file_lock.release()
 
     def generate_and_send_metar(self, host, port):
         if self.current_line:
@@ -151,7 +149,7 @@ class METARGeneratorApp(tk.Tk):
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     s.connect((host, port))
                     s.sendall(metar_data.encode())
-                    report_type = "METAR" if metar_data.contains('METAR') else "SPECI"
+                    report_type = "METAR" if "METAR" in metar_data else "SPECI"
                     self.metar_text.insert(tk.END, f"Sent {report_type} to {host}:{port}: {metar_data}\n")
             except Exception as e:
                 self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
