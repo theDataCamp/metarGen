@@ -112,7 +112,7 @@ class METARGeneratorApp(tk.Tk):
                             if host and port_str:
                                 try:
                                     port = int(port_str)
-                                    thread = threading.Thread(target=self.send_metar_to_host, args=(host, port, self.current_line))
+                                    thread = threading.Thread(target=self.send_message_to_host, args=(host, port, self.current_line))
                                     thread.start()
                                 except ValueError:
                                     self.metar_text.insert(tk.END, f"Invalid port value for {host}\n")
@@ -134,7 +134,7 @@ class METARGeneratorApp(tk.Tk):
         timestamp = current_time.strftime('%d%H%MZ')
         return timestamp
 
-    def send_metar_to_host(self, host, port, line):
+    def send_message_to_host(self, host, port, line):
         metar_data = line.strip()
         timestamp = self.get_timestamp_for_message()
         metar_data = metar_data.replace('ddHHMMZ', timestamp)
