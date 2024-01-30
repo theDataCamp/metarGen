@@ -7,14 +7,18 @@ import threading
 class HostPortEntryFrame(ttk.Frame):
     def __init__(self, parent, host_label_text, port_label_text):
         super().__init__(parent)
+        self.enable_var = tk.IntVar(value=0)
         self.name_label = ttk.Label(self, text="Name")
         self.host_label = ttk.Label(self, text=host_label_text)
         self.port_label = ttk.Label(self, text=port_label_text)
         self.name_entry = ttk.Entry(self, width=30)
         self.host_entry = ttk.Entry(self, width=30)
         self.port_entry = ttk.Entry(self, width=10)
+        self.enable_button = ttk.Checkbutton(self, text="Enable", variable=self.enable_var, command=self.toggle_state)
 
         self.row_num = 0
+        self.enable_button.grid(row=self.row_num, column=0, padx=10, pady=5)
+        self.row_num += 1
         self.name_label.grid(row=self.row_num, column=0, padx=10, pady=5)
         self.name_entry.grid(row=self.row_num, column=1, padx=10, pady=5)
         self.row_num += 1
@@ -23,11 +27,31 @@ class HostPortEntryFrame(ttk.Frame):
         self.port_label.grid(row=self.row_num, column=2, padx=10, pady=5)
         self.port_entry.grid(row=self.row_num, column=3, padx=10, pady=5)
 
+        self.toggle_state()
+
+    def get_enable_state(self):
+        return self.enable_var.get()
+
+    def is_enabled(self):
+        return self.enable_var.get() == 1
+
+    def entry_ready_to_send(self):
+        return self.is_enabled() and self.get_host() and self.get_port()
+
     def get_host(self):
         return self.host_entry.get()
 
     def get_port(self):
         return self.port_entry.get()
+
+    def toggle_state(self):
+        new_state = "normal" if self.get_enable_state() == 1 else "disabled"
+        self.name_label.config(state=new_state)
+        self.name_entry.config(state=new_state)
+        self.host_label.config(state=new_state)
+        self.host_entry.config(state=new_state)
+        self.port_label.config(state=new_state)
+        self.port_entry.config(state=new_state)
 
 class METARGeneratorApp(tk.Tk):
     def __init__(self, host_port_pairs):
@@ -69,18 +93,19 @@ class METARGeneratorApp(tk.Tk):
 
     def send_now_button_click(self):
         for entry_frame in self.host_port_entries:
-            host = entry_frame.get_host()
-            port_str = entry_frame.get_port()
+            if entry_frame.entry_ready_to_send():
+                host = entry_frame.get_host()
+                port_str = entry_frame.get_port()
 
-            if host and port_str:
-                try:
-                    port = int(port_str)
-                    thread = threading.Thread(target=self.send_metar_to_host, args=(host, port))
-                    thread.start()
-                except ValueError:
-                    self.metar_text.insert(tk.END, f"Invalid port value for {host}\n")
-                except Exception as e:
-                    self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
+                if host and port_str:
+                    try:
+                        port = int(port_str)
+                        thread = threading.Thread(target=self.send_metar_to_host, args=(host, port))
+                        thread.start()
+                    except ValueError:
+                        self.metar_text.insert(tk.END, f"Invalid port value for {host}\n")
+                    except Exception as e:
+                        self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
 
     def get_file_iterator(self):
         with open("input.txt", "r") as file:
@@ -126,7 +151,8 @@ class METARGeneratorApp(tk.Tk):
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                     s.connect((host, port))
                     s.sendall(metar_data.encode())
-                    self.metar_text.insert(tk.END, f"Sent METAR to {host}:{port}: {metar_data}\n")
+                    report_type = "METAR" if metar_data.contains('METAR') else "SPECI"
+                    self.metar_text.insert(tk.END, f"Sent {report_type} to {host}:{port}: {metar_data}\n")
             except Exception as e:
                 self.metar_text.insert(tk.END, f"Error: {str(e)}\n")
         else:
